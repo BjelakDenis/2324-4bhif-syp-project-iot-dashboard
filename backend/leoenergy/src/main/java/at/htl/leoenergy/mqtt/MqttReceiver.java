@@ -3,8 +3,6 @@ package at.htl.leoenergy.mqtt;
 import at.htl.leoenergy.entity.SensorBoxValue;
 import at.htl.leoenergy.entity.SensorValue;
 import at.htl.leoenergy.influxdb.InfluxDbRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;
@@ -15,10 +13,9 @@ import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
-import org.jetbrains.annotations.NotNull;
 
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletionStage;
-import java.util.function.Function;
 
 @ApplicationScoped
 public class MqttReceiver {
@@ -30,6 +27,8 @@ public class MqttReceiver {
 
     @ConfigProperty(name = "mp.messaging.incoming.sensorbox.host")
     String sensorboxHost;
+    @Inject
+    SensorValueMapper sensorValueMapper;
 
     public void startUp(@Observes StartupEvent ev) {
         Log.infof("Set %s as leoenergy host", leoenergyHost);
@@ -37,18 +36,21 @@ public class MqttReceiver {
     }
 
     public void insertMeasurement(SensorValue sensorValue) {
-        influxDbRepository.insertMeasurementFromJSON(sensorValue);
+        influxDbRepository.insert(sensorValue);
     }
 
     @Incoming("leoenergy")
     public void receive(byte[] byteArray) {
-        String msg = new String(byteArray);
+        var msg = new String(byteArray, StandardCharsets.UTF_8);
         try {
-            SensorValue sensorValue = SensorValue.fromJson(msg);
-            Log.info(sensorValue.toString());
-            insertMeasurement(sensorValue);
-        } catch (NullPointerException e) {
-            e.printStackTrace();
+            var sensorValue = sensorValueMapper.fromJson(msg);
+            if (sensorValue != null) {
+                Log.infof("Wert empfangen: %s", sensorValue.toString());
+                insertMeasurement(sensorValue);
+            }
+        } catch (Exception e) {
+            Log.error("Fehler beim Empfangen: ", e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -80,13 +82,7 @@ public class MqttReceiver {
             long timestampInSeconds = Long.parseLong(timestamp);
             long timestampInMilliseconds = timestampInSeconds * 1000;
 
-            SensorBoxValue sensorBoxValue = new SensorBoxValue(
-                    floor,
-                    Double.parseDouble(value),
-                    room,
-                    physicalParameter,
-                    timestampInMilliseconds
-            );
+            SensorBoxValue sensorBoxValue = new SensorBoxValue(floor, Double.parseDouble(value), room, physicalParameter, timestampInMilliseconds);
 
             Log.info(sensorBoxValue.toString());
             influxDbRepository.insertSensorBoxMeasurement(sensorBoxValue);

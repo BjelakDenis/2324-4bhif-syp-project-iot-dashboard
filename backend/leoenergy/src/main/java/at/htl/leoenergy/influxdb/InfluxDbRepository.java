@@ -38,14 +38,22 @@ public class InfluxDbRepository {
         Log.infof("InfluxUrl: %s", influxUrl);
     }
 
-    public void insertMeasurementFromJSON(SensorValue sensorValue) {
+    public void insert(SensorValue sensorValue) {
         try {
-            InfluxDBClient client = InfluxDBClientFactory.create(influxUrl, token.toCharArray());
-            WriteApiBlocking writeApi = client.getWriteApiBlocking();
+            var client = InfluxDBClientFactory.create(influxUrl, token.toCharArray());
+            var writeApi = client.getWriteApiBlocking();
 
-            long currentTimeInNanoseconds = TimeUnit.MILLISECONDS.toMillis(sensorValue.getTime());
+            var valueTimestampInMs = TimeUnit.MILLISECONDS.toMillis(sensorValue.getTime());
+            var pointBuilder = new PointBuilder("sensor_values");
 
-            Point point = Point.measurement("sensor_values")
+            var point = pointBuilder
+                    .deviceName(sensorValue.getDeviceName())
+                    .valueTypeId(sensorValue.getValueTypeId())
+                    .build();
+
+
+
+           /* var point = Point.measurement("sensor_values")
                     // Beispiel: Name des Geräts, z.B. "PV-Energie"
                     .addTag("device_name", sensorValue.getDeviceName()) // device_name: PV-Energie
                     // Beispiel: ID des Wertetyps, z.B. "56"
@@ -61,7 +69,7 @@ public class InfluxDbRepository {
                     // Beispiel: Standort des Geräts, z.B. "PV-Raum-Keller"
                     .addTag("site", sensorValue.getSite()) // site: PV-Raum-Keller
                     // Zeitstempel des Werts (in Millisekunden), z.B. 1732873810000
-                    .time(currentTimeInNanoseconds, WritePrecision.MS);
+                    .time(valueTimestampInMs, WritePrecision.MS);*/
 
             writeApi.writePoint(bucket, org, point);
             client.close();
@@ -73,8 +81,7 @@ public class InfluxDbRepository {
 
 
     public void insertSensorBoxMeasurement(SensorBoxValue sensorBox) {
-        try {
-            InfluxDBClient client = InfluxDBClientFactory.create(influxUrl, token.toCharArray());
+        try(var client = InfluxDBClientFactory.create(influxUrl, token.toCharArray())) {
             WriteApiBlocking writeApi = client.getWriteApiBlocking();
 
             long currentTimeInNanoseconds = TimeUnit.MILLISECONDS.toMillis(sensorBox.getTime());
@@ -85,7 +92,7 @@ public class InfluxDbRepository {
                     .addField("value", sensorBox.getValue()).time(currentTimeInNanoseconds, WritePrecision.MS); // Zeitstempel des Werts (in Millisekunden), z.B. 1732874651000 (nach Konvertierung)
 
             writeApi.writePoint(bucket, org, point);
-            client.close();
+
         } catch (Exception e) {
             System.err.println("Error writing CO2 data to InfluxDB: " + e.getMessage());
             e.printStackTrace();

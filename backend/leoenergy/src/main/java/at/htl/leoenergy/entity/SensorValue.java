@@ -35,19 +35,6 @@ public class SensorValue {
         this.relation = relation;
     }
 
-    public static SensorValue fromJson(String json) {
-        try {
-            ObjectMapper objectMapper = new ObjectMapper();
-            SensorValue sensorValue = objectMapper.readValue(json, SensorValue.class);
-            UnitConverter.setTypeOfDevice(sensorValue);
-            return sensorValue;
-        } catch (JsonProcessingException e) {
-            Log.error("Error during converting json string to SensorValue object!");
-            e.printStackTrace();
-            return null;
-        }
-    }
-
     public BigInteger getId() {
         return id;
     }
