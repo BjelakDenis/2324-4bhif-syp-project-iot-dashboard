@@ -3,6 +3,7 @@ package at.htl.leoenergy.influxdb;
 import at.htl.leoenergy.entity.SensorBoxDTO;
 import at.htl.leoenergy.entity.SensorBoxValue;
 import at.htl.leoenergy.entity.SensorValue;
+import at.htl.leoenergy.mqtt.InfluxDbConnectionManager;
 import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.InfluxDBClientFactory;
 import com.influxdb.client.QueryApi;
@@ -13,20 +14,22 @@ import io.quarkus.logging.Log;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
+import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 @ApplicationScoped
 public class InfluxDbRepository {
-    @ConfigProperty(name = "influxdb.url")
-    String influxUrl;
 
-    @ConfigProperty(name = "influxdb.token")
-    String token;
+
+    @Inject
+    InfluxDbConnectionManager influxDBClient;
+
 
     @ConfigProperty(name = "influxdb.org")
     String org;
@@ -34,55 +37,30 @@ public class InfluxDbRepository {
     @ConfigProperty(name = "influxdb.bucket")
     String bucket;
 
-    public void startUp(@Observes StartupEvent ev) {
-        Log.infof("InfluxUrl: %s", influxUrl);
-    }
 
     public void insert(SensorValue sensorValue) {
-        try {
-            var client = InfluxDBClientFactory.create(influxUrl, token.toCharArray());
-            var writeApi = client.getWriteApiBlocking();
+        var writeApi = influxDBClient.getInfluxDBClient().getWriteApiBlocking();
+        var valueTimestampInMs = TimeUnit.MILLISECONDS.toMillis(sensorValue.getTime());
+        var point = new PointBuilder()
+                .deviceName(sensorValue.getDeviceName())
+                .valueTypeId(sensorValue.getValueTypeId())
+                .relation(sensorValue.getRelation())
+                .valueType(sensorValue.getValueType())
+                .site(sensorValue.getSite())
+                .value(sensorValue.getValue())
+                .unit(sensorValue.getUnit())
+                .timestamp(valueTimestampInMs)
+                .build();
 
-            var valueTimestampInMs = TimeUnit.MILLISECONDS.toMillis(sensorValue.getTime());
-            var pointBuilder = new PointBuilder("sensor_values");
+        writeApi.writePoint(bucket, org, point);
 
-            var point = pointBuilder
-                    .deviceName(sensorValue.getDeviceName())
-                    .valueTypeId(sensorValue.getValueTypeId())
-                    .build();
-
-
-
-           /* var point = Point.measurement("sensor_values")
-                    // Beispiel: Name des Geräts, z.B. "PV-Energie"
-                    .addTag("device_name", sensorValue.getDeviceName()) // device_name: PV-Energie
-                    // Beispiel: ID des Wertetyps, z.B. "56"
-                    .addTag("value_type_id", String.valueOf(sensorValue.getValueTypeId())) // value_type_id: 56
-                    // Beispiel: Typ des gemessenen Werts, z.B. "Energy"
-                    .addTag("value_type", String.valueOf(sensorValue.getValueType())) // value_type: Energy
-                    // Beispiel: Gemessener Wert, z.B. "7572564"
-                    .addField("value", sensorValue.getValue()) // value: 7572564
-                    // Beispiel: Beziehung/Relation des Werts, z.B. "consumption/production"
-                    .addTag("relation", sensorValue.getRelation()) // relation: generated
-                    // Beispiel: Einheit des gemessenen Werts, z.B. "Wh"
-                    .addTag("unit", sensorValue.getUnit()) // unit: Wh
-                    // Beispiel: Standort des Geräts, z.B. "PV-Raum-Keller"
-                    .addTag("site", sensorValue.getSite()) // site: PV-Raum-Keller
-                    // Zeitstempel des Werts (in Millisekunden), z.B. 1732873810000
-                    .time(valueTimestampInMs, WritePrecision.MS);*/
-
-            writeApi.writePoint(bucket, org, point);
-            client.close();
-        } catch (Exception e) {
-            System.err.println("Error writing SensorValue data to InfluxDB: " + e.getMessage());
-            e.printStackTrace();
-        }
     }
 
 
     public void insertSensorBoxMeasurement(SensorBoxValue sensorBox) {
-        try(var client = InfluxDBClientFactory.create(influxUrl, token.toCharArray())) {
-            WriteApiBlocking writeApi = client.getWriteApiBlocking();
+        try {
+
+            WriteApiBlocking writeApi = influxDBClient.getInfluxDBClient().getWriteApiBlocking();
 
             long currentTimeInNanoseconds = TimeUnit.MILLISECONDS.toMillis(sensorBox.getTime());
 
@@ -102,12 +80,12 @@ public class InfluxDbRepository {
     public List<String> getAllFloors() {
         Set<String> floors = new HashSet<>();
 
-        try (InfluxDBClient client = InfluxDBClientFactory.create(influxUrl, token.toCharArray())) {
-            QueryApi queryApi = client.getQueryApi();
+        try {
 
-            String fluxQuery = String.format("from(bucket: \"%s\") " + "|> range(start: 0) " + "|> distinct(column: \"floor\") " + "|> keep(columns: [\"floor\"])", bucket);
 
-            queryApi.query(fluxQuery, org).forEach(table -> table.getRecords().forEach(record -> floors.add(record.getValueByKey("floor").toString())));
+            var fluxQuery = String.format("from(bucket: \"%s\") " + "|> range(start: 0) " + "|> distinct(column: \"floor\") " + "|> keep(columns: [\"floor\"])", bucket);
+
+            influxDBClient.getInfluxDBClient().getQueryApi().query(fluxQuery, org).forEach(table -> table.getRecords().forEach(record -> floors.add(record.getValueByKey("floor").toString())));
         } catch (Exception e) {
             Log.error("Error retrieving distinct floors: ", e);
         }
@@ -118,72 +96,85 @@ public class InfluxDbRepository {
     public List<String> getAllRooms() {
         Set<String> rooms = new HashSet<>();
 
-        try (InfluxDBClient client = InfluxDBClientFactory.create(influxUrl, token.toCharArray())) {
-            QueryApi queryApi = client.getQueryApi();
 
-            String fluxQuery = String.format("from(bucket: \"%s\") " + "|> range(start: 0) " + "|> distinct(column: \"room\") " + "|> keep(columns: [\"room\"])", bucket);
+        QueryApi queryApi = influxDBClient.getInfluxDBClient().getQueryApi();
 
-            queryApi.query(fluxQuery, org).forEach(table -> table.getRecords().forEach(record -> rooms.add(record.getValueByKey("room").toString())));
+        String fluxQuery = String.format("from(bucket: \"%s\") " + "|> range(start: 0) " + "|> distinct(column: \"room\") " + "|> keep(columns: [\"room\"])", bucket);
 
-        } catch (Exception e) {
-            Log.error("Error retrieving distinct rooms: ", e);
-        }
+        queryApi.query(fluxQuery, org).forEach(table -> table.getRecords().forEach(record -> rooms.add(record.getValueByKey("room").toString())));
+
 
         return rooms.stream().toList();
+
     }
 
     public SensorBoxDTO getLatestSensorBoxDataForRoom(String room) {
         final SensorBoxDTO sensorBoxDTO = new SensorBoxDTO();
         sensorBoxDTO.setRoom(room);
+        InfluxDBClient client = influxDBClient.getInfluxDBClient();
+        QueryApi queryApi = client.getQueryApi();
 
-        try (InfluxDBClient client = InfluxDBClientFactory.create(influxUrl, token.toCharArray())) {
-            QueryApi queryApi = client.getQueryApi();
+        String fluxQuery = String.format("from(bucket: \"%s\") " + "|> range(start: 0) " + "|> filter(fn: (r) => r[\"_measurement\"] == \"sensor_box\") " + "|> filter(fn: (r) => r[\"room\"] == \"%s\") " + "|> group(columns: [\"parameter\"]) " + "|> last()", bucket, room);
 
-            String fluxQuery = String.format("from(bucket: \"%s\") " + "|> range(start: 0) " + "|> filter(fn: (r) => r[\"_measurement\"] == \"sensor_box\") " + "|> filter(fn: (r) => r[\"room\"] == \"%s\") " + "|> group(columns: [\"parameter\"]) " + "|> last()", bucket, room);
+        queryApi.query(fluxQuery, org).forEach(table -> table.getRecords()
+                .forEach(record -> {
+                    String parameter = record.getValueByKey("parameter").toString();
+                    Double value = Double.parseDouble(record.getValueByKey("_value").toString());
+                    long timestamp = record.getTime().toEpochMilli();
 
-            queryApi.query(fluxQuery, org).forEach(table -> table.getRecords().forEach(record -> {
-                String parameter = record.getValueByKey("parameter").toString();
-                Double value = Double.parseDouble(record.getValueByKey("_value").toString());
-                long timestamp = record.getTime().toEpochMilli();
+                    sensorBoxDTO.setTimestamp(timestamp); // Set timestamp from any parameter (latest)
+                    sensorBoxDTO.setFloor(record.getValueByKey("floor").toString());
 
-                sensorBoxDTO.setTimestamp(timestamp); // Set timestamp from any parameter (latest)
-                sensorBoxDTO.setFloor(record.getValueByKey("floor").toString());
+                    switch (parameter) {
+                        case "co2":
+                            sensorBoxDTO.setCo2(value);
+                            break;
+                        case "humidity":
+                            sensorBoxDTO.setHumidity(value);
+                            break;
+                        case "motion":
+                            sensorBoxDTO.setMotion(value);
+                            break;
+                        case "neopixel":
+                            sensorBoxDTO.setNeopixel(value);
+                            break;
+                        case "noise":
+                            sensorBoxDTO.setNoise(value);
+                            break;
+                        case "pressure":
+                            sensorBoxDTO.setPressure(value);
+                            break;
+                        case "rssi":
+                            sensorBoxDTO.setRssi(value);
+                            break;
+                        case "temperature":
+                            sensorBoxDTO.setTemperature(value);
+                            break;
+                        default:
+                            Log.warnf("Unhandled parameter: %s", parameter);
+                            break;
+                    }
+                }));
 
-                switch (parameter) {
-                    case "co2":
-                        sensorBoxDTO.setCo2(value);
-                        break;
-                    case "humidity":
-                        sensorBoxDTO.setHumidity(value);
-                        break;
-                    case "motion":
-                        sensorBoxDTO.setMotion(value);
-                        break;
-                    case "neopixel":
-                        sensorBoxDTO.setNeopixel(value);
-                        break;
-                    case "noise":
-                        sensorBoxDTO.setNoise(value);
-                        break;
-                    case "pressure":
-                        sensorBoxDTO.setPressure(value);
-                        break;
-                    case "rssi":
-                        sensorBoxDTO.setRssi(value);
-                        break;
-                    case "temperature":
-                        sensorBoxDTO.setTemperature(value);
-                        break;
-                    default:
-                        Log.warnf("Unhandled parameter: %s", parameter);
-                        break;
-                }
-            }));
-
-        } catch (Exception e) {
-            Log.error("Error retrieving latest sensor box data for room: " + room, e);
-        }
 
         return sensorBoxDTO;
     }
+    /*
+    //TODO: Check if angular can handle records
+    public List<Map<String,Object>> getLatestRoomValues(String room) {
+
+        InfluxDBClient client = influxDBClient.getInfluxDBClient();
+        QueryApi queryApi = client.getQueryApi();
+
+        String fluxQuery = String.format("from(bucket: \"%s\") " + "|> range(start: 0) " + "|> filter(fn: (r) => r[\"_measurement\"] == \"sensor_box\") " + "|> filter(fn: (r) => r[\"room\"] == \"%s\") " + "|> group(columns: [\"parameter\"]) " + "|> last()", bucket, room);
+
+        return queryApi.query(fluxQuery, org).stream()
+                .map(fluxTable -> fluxTable.getRecords())
+                        .map(records -> records.stream()
+                                .map(record -> record.getValue()))
+                        .toList();
+
+
+
+    }*/
 }
