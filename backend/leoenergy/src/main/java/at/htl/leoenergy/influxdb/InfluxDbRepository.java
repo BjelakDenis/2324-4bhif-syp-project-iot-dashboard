@@ -5,24 +5,16 @@ import at.htl.leoenergy.entity.SensorBoxValue;
 import at.htl.leoenergy.entity.SensorValue;
 import at.htl.leoenergy.influxdb.mapper.SensorBoxMapper;
 import at.htl.leoenergy.mqtt.InfluxDbConnectionManager;
-import com.influxdb.client.InfluxDBClient;
-import com.influxdb.client.InfluxDBClientFactory;
-import com.influxdb.client.QueryApi;
-import com.influxdb.client.WriteApiBlocking;
-import com.influxdb.client.domain.WritePrecision;
-import com.influxdb.client.write.Point;
 import com.influxdb.query.FluxRecord;
-import io.quarkus.logging.Log;
-import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 
 @ApplicationScoped
 public class InfluxDbRepository {
