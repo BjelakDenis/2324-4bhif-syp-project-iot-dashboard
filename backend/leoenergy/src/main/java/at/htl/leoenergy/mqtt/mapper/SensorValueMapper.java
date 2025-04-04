@@ -1,4 +1,4 @@
-package at.htl.leoenergy.mqtt;
+package at.htl.leoenergy.mqtt.mapper;
 
 import at.htl.leoenergy.entity.SensorValue;
 import at.htl.leoenergy.influxdb.UnitConverter;

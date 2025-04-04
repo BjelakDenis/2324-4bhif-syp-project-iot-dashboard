@@ -1,55 +1,51 @@
 package at.htl.leoenergy.entity;
 
+import at.htl.leoenergy.entity.SensorBoxDTO;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
+
 class SensorBoxDTOTest {
 
     @Test
-    void deleteFaultyValues() {
-        // Test case with valid values
-        SensorBoxDTO validDto = new SensorBoxDTO();
-        validDto.setCo2(500.0);
-        validDto.setHumidity(50.0);
-        validDto.setNoise(100.0);
-        validDto.setPressure(1013.25);
-        validDto.setTemperature(20.0);
+    void deleteFaultyValues_shouldHandleValidAndInvalidInputs() {
+        // --- Valid values ---
+        SensorBoxDTO validDto = new SensorBoxDTO(
+                "room1", "EG", 500.0, 50.0, 1.0, 1.0, 100.0, 1013.25, -50.0, 20.0, 123456789L
+        );
 
         SensorBoxDTO resultValid = SensorBoxDTO.deleteFaultyValues(validDto);
-        assertEquals(500.0, resultValid.getCo2());
-        assertEquals(50.0, resultValid.getHumidity());
-        assertEquals(100.0, resultValid.getNoise());
-        assertEquals(1013.25, resultValid.getPressure());
-        assertEquals(20.0, resultValid.getTemperature());
 
-        // Test case with invalid values (less than acceptable range)
-        SensorBoxDTO invalidDtoLow = new SensorBoxDTO();
-        invalidDtoLow.setCo2(-10.0);
-        invalidDtoLow.setHumidity(-5.0);
-        invalidDtoLow.setNoise(-1.0);
-        invalidDtoLow.setPressure(-100.0);
-        invalidDtoLow.setTemperature(-300.0);
+        assertEquals(500.0, resultValid.co2());
+        assertEquals(50.0, resultValid.humidity());
+        assertEquals(100.0, resultValid.noise());
+        assertEquals(1013.25, resultValid.pressure());
+        assertEquals(20.0, resultValid.temperature());
 
-        SensorBoxDTO resultInvalidLow = SensorBoxDTO.deleteFaultyValues(invalidDtoLow);
-        assertEquals(Double.NaN, resultInvalidLow.getCo2());
-        assertEquals(Double.NaN, resultInvalidLow.getHumidity());
-        assertEquals(Double.NaN, resultInvalidLow.getNoise());
-        assertEquals(Double.NaN, resultInvalidLow.getPressure());
-        assertEquals(Double.NaN, resultInvalidLow.getTemperature());
+        // --- Invalid low values ---
+        SensorBoxDTO invalidLowDto = new SensorBoxDTO(
+                "room1", "EG", -10.0, -5.0, 0.0, 0.0, -1.0, -100.0, 0.0, -300.0, 123456789L
+        );
 
-        // Test case with invalid values (greater than acceptable range)
-        SensorBoxDTO invalidDtoHigh = new SensorBoxDTO();
-        invalidDtoHigh.setCo2(1000001.0);
-        invalidDtoHigh.setHumidity(101.0);
-        invalidDtoHigh.setNoise(195.0);
-        invalidDtoHigh.setPressure(Double.MAX_VALUE);
-        invalidDtoHigh.setTemperature(1000.0); // Valid temperature
+        SensorBoxDTO resultLow = SensorBoxDTO.deleteFaultyValues(invalidLowDto);
 
-        SensorBoxDTO resultInvalidHigh = SensorBoxDTO.deleteFaultyValues(invalidDtoHigh);
-        assertEquals(Double.NaN, resultInvalidHigh.getCo2());
-        assertEquals(Double.NaN, resultInvalidHigh.getHumidity());
-        assertEquals(Double.NaN, resultInvalidHigh.getNoise());
-        assertEquals(Double.MAX_VALUE, resultInvalidHigh.getPressure()); // Pressure can be high
-        assertEquals(1000.0, resultInvalidHigh.getTemperature());
+        assertTrue(Double.isNaN(resultLow.co2()));
+        assertTrue(Double.isNaN(resultLow.humidity()));
+        assertTrue(Double.isNaN(resultLow.noise()));
+        assertTrue(Double.isNaN(resultLow.pressure()));
+        assertTrue(Double.isNaN(resultLow.temperature()));
+
+        // --- Invalid high values (only co2, humidity, noise are limited) ---
+        SensorBoxDTO invalidHighDto = new SensorBoxDTO(
+                "room1", "EG", 1_000_001.0, 101.0, 0.0, 0.0, 195.0, Double.MAX_VALUE, 0.0, 1000.0, 123456789L
+        );
+
+        SensorBoxDTO resultHigh = SensorBoxDTO.deleteFaultyValues(invalidHighDto);
+
+        assertTrue(Double.isNaN(resultHigh.co2()));
+        assertTrue(Double.isNaN(resultHigh.humidity()));
+        assertTrue(Double.isNaN(resultHigh.noise()));
+        assertEquals(Double.MAX_VALUE, resultHigh.pressure());
+        assertEquals(1000.0, resultHigh.temperature());
     }
 }

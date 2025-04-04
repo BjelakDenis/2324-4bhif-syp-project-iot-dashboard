@@ -41,14 +41,30 @@ public class PointBuilder {
         return this;
     }
 
+    public PointBuilder room(String room) {
+        this.point.addTag("room", room);
+        return this;
+    }
+
+    public PointBuilder parameter(String parameter) {
+        this.point.addTag("parameter", parameter);
+        return this;
+    }
+
+    public PointBuilder floor(String floor) {
+        this.point.addTag("floor", floor);
+        return this;
+    }
+
     public PointBuilder timestamp(long timestampInMillis) {
         this.point.time(timestampInMillis, WritePrecision.MS);
         return this;
     }
 
-    PointBuilder() {
-        this.point = new Point("sensor_values");
+    PointBuilder(String measurmentName) {
+        this.point = new Point(measurmentName);
     }
+
 
     Point build() {
         return point;

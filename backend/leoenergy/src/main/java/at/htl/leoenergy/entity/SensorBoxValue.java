@@ -1,21 +1,17 @@
 package at.htl.leoenergy.entity;
 
-public class SensorBoxValue {
+public class SensorBoxValue extends BaseSensorValue {
     private String floor;
-    private double value;
     private String room;
     private String parameter;
-    private long time;
 
-    public SensorBoxValue() {
-    }
+    public SensorBoxValue() {}
 
     public SensorBoxValue(String floor, double value, String room, String parameter, long time) {
+        super(value, time);
         this.floor = floor;
-        this.value = value;
         this.room = room;
         this.parameter = parameter;
-        this.time = time;
     }
 
     public String getFloor() {
@@ -24,14 +20,6 @@ public class SensorBoxValue {
 
     public void setFloor(String floor) {
         this.floor = floor;
-    }
-
-    public double getValue() {
-        return value;
-    }
-
-    public void setValue(double value) {
-        this.value = value;
     }
 
     public String getRoom() {
@@ -50,14 +38,6 @@ public class SensorBoxValue {
         this.parameter = parameter;
     }
 
-    public long getTime() {
-        return time;
-    }
-
-    public void setTime(long time) {
-        this.time = time;
-    }
-
     @Override
     public String toString() {
         return String.format(
@@ -65,5 +45,4 @@ public class SensorBoxValue {
                 floor, value, room, parameter, time
         );
     }
-
 }

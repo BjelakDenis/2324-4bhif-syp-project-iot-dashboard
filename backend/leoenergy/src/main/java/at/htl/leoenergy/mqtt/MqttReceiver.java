@@ -3,6 +3,7 @@ package at.htl.leoenergy.mqtt;
 import at.htl.leoenergy.entity.SensorBoxValue;
 import at.htl.leoenergy.entity.SensorValue;
 import at.htl.leoenergy.influxdb.InfluxDbRepository;
+import at.htl.leoenergy.mqtt.mapper.SensorValueMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;

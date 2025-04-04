@@ -1,38 +1,30 @@
 package at.htl.leoenergy.entity;
 
-import at.htl.leoenergy.influxdb.UnitConverter;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.quarkus.logging.Log;
 
 import java.math.BigInteger;
-
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class SensorValue {
+public class SensorValue extends BaseSensorValue {
 
     private BigInteger id;
     private Long valueTypeId;
     private String deviceName;
     private long deviceId;
-    private long time;
     private String site;
     private String unit;
     private String valueType;
-    private double value;
     private String relation;
 
-    public SensorValue() {
-    }
+    public SensorValue() {}
 
     public SensorValue(long deviceId, long time, double value, Long measurementId, String description, String unit, String relation, String deviceName) {
+        super(value, time);
         this.valueTypeId = measurementId;
-        this.time = time;
-        this.value = value;
         this.deviceId = deviceId;
         this.site = description;
         this.unit = unit;
         this.relation = relation;
+        this.deviceName = deviceName;
     }
 
     public BigInteger getId() {
@@ -43,12 +35,12 @@ public class SensorValue {
         this.id = id;
     }
 
-    public long getTime() {
-        return time;
+    public Long getValueTypeId() {
+        return valueTypeId;
     }
 
-    public void setTime(long time) {
-        this.time = time;
+    public void setValueTypeId(Long valueTypeId) {
+        this.valueTypeId = valueTypeId;
     }
 
     public String getDeviceName() {
@@ -57,6 +49,14 @@ public class SensorValue {
 
     public void setDeviceName(String deviceName) {
         this.deviceName = deviceName;
+    }
+
+    public long getDeviceId() {
+        return deviceId;
+    }
+
+    public void setDeviceId(long deviceId) {
+        this.deviceId = deviceId;
     }
 
     public String getSite() {
@@ -83,36 +83,12 @@ public class SensorValue {
         this.valueType = valueType;
     }
 
-    public double getValue() {
-        return value;
-    }
-
-    public void setValue(double value) {
-        this.value = value;
-    }
-
-    public long getDeviceId() {
-        return deviceId;
-    }
-
-    public void setDeviceId(long deviceId) {
-        this.deviceId = deviceId;
-    }
-
     public String getRelation() {
         return relation;
     }
 
     public void setRelation(String relation) {
         this.relation = relation;
-    }
-
-    public Long getValueTypeId() {
-        return valueTypeId;
-    }
-
-    public void setValueTypeId(Long valueTypeId) {
-        this.valueTypeId = valueTypeId;
     }
 
     @Override
@@ -123,5 +99,4 @@ public class SensorValue {
                 deviceId, deviceName, value, valueType, valueTypeId, unit, site, relation, time
         );
     }
-
 }
