@@ -114,9 +114,14 @@ export class GraphOverviewComponent implements OnInit {
     console.log("Datenmodus umgeschaltet:", this.showPvData ? "PV-Daten" : "Sensorboxen");
   }
 
+  public logButtonClick(): void {
+    console.log('Button wurde geklickt');
+  }
+
   constructor(public sanitizer: DomSanitizer, public http: HttpClient) {}
 
   ngOnInit(): void {
+    console.log("GraphOverviewComponent gestartet");
     const today = new Date();
     this.selectedDate = today.toISOString().substring(0, 10); // z.B. "2025-06-21"
     this.selectedMonthYear = { year: today.getFullYear(), month: today.getMonth() };
