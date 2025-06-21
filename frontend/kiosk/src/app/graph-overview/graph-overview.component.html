@@ -1,4 +1,10 @@
 <!-- Container für Titel, Einstellungen und Wetterkomponente auf derselben Höhe -->
+
+<!-- 🤖 TEST-ÄNDERUNG von BjelakDenis – wenn du das siehst, läuft der Workflow! -->
+<div style="background-color: #d1e7dd; padding: 10px; border: 2px dashed green; margin-bottom: 10px; text-align: center;">
+  <strong>✅ GitHub Actions Test:</strong> Diese Änderung wurde erfolgreich über den Workflow deployed 🚀
+</div>
+
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div class="header-center">
     <h1 *ngIf="currentGraph">{{ currentGraph.title }}</h1>
@@ -39,12 +45,8 @@
               <!-- Optionale Überschrift -->
               <li class="dropdown-header custom-dropdown-header">Dashboard</li>
 
-              <li
-                class="dropdown-item d-flex justify-content-between align-items-center"
-              >
-                <label class="form-check-label mb-0" style="margin-right: 10px"
-                >Kiosk-Mode</label
-                >
+              <li class="dropdown-item d-flex justify-content-between align-items-center">
+                <label class="form-check-label mb-0" style="margin-right: 10px">Kiosk-Mode</label>
                 <input
                   type="checkbox"
                   [(ngModel)]="kioskMode"
@@ -53,9 +55,7 @@
                 />
               </li>
               <li class="dropdown-item">
-                <label for="intervalRange" class="form-label"
-                >Intervall: {{ interval }} Sekunden</label
-                >
+                <label for="intervalRange" class="form-label">Intervall: {{ interval }} Sekunden</label>
                 <div class="d-flex align-items-center">
                   <input
                     id="intervalRange"
@@ -78,10 +78,7 @@
                   (ngModelChange)="changeDuration()"
                   [compareWith]="compareDurations"
                 >
-                  <option
-                    *ngFor="let duration of durations"
-                    [ngValue]="duration"
-                  >
+                  <option *ngFor="let duration of durations" [ngValue]="duration">
                     {{ duration.long }}
                   </option>
                 </select>
@@ -91,64 +88,5 @@
         </ul>
       </div>
     </nav>
-  </div>
-</div>
-
-<!-- Monatsauswahl als Dropdown -->
-<div class="dropdown-container" 
-*ngIf="showPvData && currentIndex !== -2 && currentIndex !== -3 && selectedDuration.short === '30d'">
-  <div class="month-year-selector">
-    <select class="form-select" [(ngModel)]="selectedMonthYear" (ngModelChange)="selectMonthYearCombo()">
-      <ng-container *ngFor="let year of years">
-        <optgroup [label]="year.toString()">
-          <option *ngFor="let month of months; let i = index" [ngValue]="{ year: year, month: i }">
-            {{ month }} {{ year }}
-          </option>
-        </optgroup>
-      </ng-container>
-    </select>
-  </div>
-</div>
-
-<!-- Restlicher Inhalt (Sidebar und Content) -->
-<div class="d-flex">
-  <!-- Sidebar -->
-  <div class="sidebar" style="height: 100vh; overflow-y: scroll; -ms-overflow-style: none; scrollbar-width: none; position: fixed; top: 0; left: 0; width: 290px; background-color: #f8f9fa;">
-    <!-- Sidebar-Header mit Logo -->
-    <div class="sidebar-header">
-      <img src="assets/images/new_htl_logo_name.png" alt="Logo" class="logo" style="width: 280px; height: auto;" />
-    </div>
-
-    <!-- Gesamter Container für die Modus-Auswahl -->
-    <div class="mode-selection-container p-4 mt-5 mb-2 rounded">
-      <!-- Überschrift für den Container -->
-      <h3 class="mode-selection-title mb-4">Modus</h3>
-      <div class="d-flex justify-content-center">
-        <!-- PV-Modus -->
-        <div class="mode-option d-flex flex-column align-items-center me-5">
-          <i class="fas fa-solar-panel mode-icon" title="PV-Daten"></i>
-          <input
-            type="radio"
-            name="mode"
-            [(ngModel)]="showPvData"
-            [value]="true"
-            (change)="toggleDataMode()"
-            class="mode-radio mt-3"
-          />
-        </div>
-        <!-- Sensorbox-Modus -->
-        <div class="mode-option d-flex flex-column align-items-center">
-          <i class="fas fa-broadcast-tower mode-icon" title="Sensorbox"></i>
-          <input
-            type="radio"
-            name="mode"
-            [(ngModel)]="showPvData"
-            [value]="false"
-            (change)="toggleDataMode()"
-            class="mode-radio mt-3"
-          />
-        </div>
-      </div>
-    </div>
   </div>
 </div>
