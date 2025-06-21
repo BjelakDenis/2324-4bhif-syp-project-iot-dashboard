@@ -1,15 +1,17 @@
 import { Component, OnInit } from '@angular/core';
 import { Graph } from "../model/Graph";
 import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
-import { HttpClient} from "@angular/common/http";
+import { HttpClient } from "@angular/common/http";
 import { NgForOf, NgIf } from "@angular/common";
 import { GraphComponent } from "../graph/graph.component";
 import { FormsModule } from '@angular/forms';
 import { Subscription, timer } from 'rxjs';
 import { Duration } from '../model/Duration';
-import {WeatherComponent} from "../weather/weather.component";
-import {RouterLink} from "@angular/router";
-import {SensorboxOverviewComponent} from "../sensorbox-overview/sensorbox-overview.component";
+import { WeatherComponent } from "../weather/weather.component";
+import { RouterLink } from "@angular/router";
+import { SensorboxOverviewComponent } from "../sensorbox-overview/sensorbox-overview.component";
+import { NgxChartsModule, ScaleType } from '@swimlane/ngx-charts';
+import { StromProfileComponent } from "../strom-profile/strom-profile.component";
 
 @Component({
   selector: 'app-graph-overview',
@@ -22,6 +24,8 @@ import {SensorboxOverviewComponent} from "../sensorbox-overview/sensorbox-overvi
     WeatherComponent,
     RouterLink,
     SensorboxOverviewComponent,
+    NgxChartsModule,
+    StromProfileComponent,
   ],
   templateUrl: './graph-overview.component.html',
   styleUrls: ['./graph-overview.component.css']
@@ -30,12 +34,14 @@ export class GraphOverviewComponent implements OnInit {
   public graphs: Graph[] = [];
   public currentIndex = -1;
   public currentGraph: Graph | null = null;
+  public iFrameLink: SafeResourceUrl | string = '';// Unterstützt sowohl SafeResourceUrl als auch string
 
   public isMonthSelected: boolean = false;
   public kioskMode: boolean = true;
   public interval: number = 15;
   subscription!: Subscription;
 
+  public currentPowerWatt: number = 0;
   public showPvData: boolean = true;
   public years: number[] = [2024, 2025];
   public selectedYear: number = new Date().getFullYear();
@@ -50,9 +56,9 @@ export class GraphOverviewComponent implements OnInit {
     new Duration("30d", "1 month"),
     new Duration("365d", "1 year")
   ];
-  public selectedDuration: Duration = this.durations[3];
-  public selectedMonthYear: { year: number, month: number } = { year: new Date().getFullYear(), month: new Date().getMonth() };
+  public selectedDuration: Duration = this.durations[3]; // "1 day"
 
+  public selectedMonthYear: { year: number, month: number } = { year: new Date().getFullYear(), month: new Date().getMonth() };
   public visible: boolean = false;
 
   public months: string[] = [
@@ -61,176 +67,153 @@ export class GraphOverviewComponent implements OnInit {
   ];
   public selectedMonth: number = new Date().getMonth();
 
-  constructor(public sanitizer: DomSanitizer, public http: HttpClient) { }
+  public selectedWeek: number = 1; // Beispielwert, passe die Logik entsprechend an
 
-  ngOnInit(): void {
-    this.http.get<Graph[]>('assets/data/graph-data.json').subscribe((data) => {
-      this.graphs = data;
-      console.log(this.graphs.length + " graphs loaded");
-    });
+  colorScheme = {
+    name: 'cool',
+    selectable: true,
+    group: ScaleType.Ordinal,
+    domain: ['#f44336', '#ffeb3b', '#e91e63', '#ff5722', '#ff9800', '#9c27b0', '#4caf50']
+  };
 
-    // Initialisiere die Graphen mit der Standard-Zeitspanne
-    this.updateGraphLinks();
+  public selectedDate: string = ''; // Aktuelles Datum als String
 
-    this.kioskModeChecker();
+  public kioskModeChecker(): void {
+    console.log("Kiosk Mode Checker executed");
+    // Füge hier die Logik für den Kiosk-Modus hinzu, falls erforderlich
   }
 
-  public selectMonthYearCombo(): void {
-    this.selectedMonth = this.selectedMonthYear.month;
-    this.selectedYear = this.selectedMonthYear.year;
-    this.isMonthSelected = true;
-    this.updateGraphLinks();
-    console.log("Updated Graphs for Monthly Selection");
+  private sanitizeAndInjectCss(link: string, from: number | string, to: number | string, css: string): SafeResourceUrl {
+    const sanitizedLink = `${link}?from=${from}&to=${to}&css=${css}`;
+    return this.sanitizer.bypassSecurityTrustResourceUrl(sanitizedLink);
   }
 
-  public toggleDataMode(): void {
-    this.currentIndex = this.showPvData ? -1 : -3;
-    this.currentGraph = null;
-  }
-
-  public selectAllGraphs(): void {
-    this.currentIndex = -1;
-    this.currentGraph = null;
-  }
-
-  public selectGraph(index: number): void {
-    this.currentIndex = index;
-    this.currentGraph = this.graphs[index];
-  }
-
-  public kioskModeChecker() {
-    if (this.kioskMode) {
-      this.activateKioskMode();
+  private updateCurrentGraph(): void {
+    if (this.graphs.length > 0) {
+      this.currentGraph = this.graphs[0]; // Beispiel: Setze das erste Diagramm als aktuelles Diagramm
     } else {
-      this.deactivateKioskMode();
+      this.currentGraph = null;
     }
-  }
-
-  public activateKioskMode(): void {
-    this.subscription = timer(0, this.interval * 1000).subscribe(() => {
-      this.nextGraph();
-    });
   }
 
   public deactivateKioskMode(): void {
-    if (this.subscription) {
-      this.subscription.unsubscribe();
+    console.log("Kiosk Mode deaktiviert");
+    this.kioskMode = false;
+  }
+
+  public compareDurations(d1: Duration, d2: Duration): boolean {
+    return d1.short === d2.short;
+  }
+
+  public selectMonthYearCombo(): void {
+    console.log("Monat und Jahr ausgewählt:", this.selectedMonthYear);
+    // Füge hier die Logik hinzu, falls erforderlich
+  }
+
+  public toggleDataMode(): void {
+    console.log("Datenmodus umgeschaltet:", this.showPvData ? "PV-Daten" : "Sensorboxen");
+  }
+
+  constructor(public sanitizer: DomSanitizer, public http: HttpClient) {}
+
+  ngOnInit(): void {
+    const today = new Date();
+    this.selectedDate = today.toISOString().substring(0, 10); // z.B. "2025-06-21"
+    this.selectedMonthYear = { year: today.getFullYear(), month: today.getMonth() };
+    this.selectedMonth = today.getMonth();
+    this.selectedYear = today.getFullYear();
+    this.isMonthSelected = false;
+
+    // Setze die obere Leiste auf den aktuellen Tag
+    this.updateTopBarDate(today);
+
+    this.selectedDuration = this.durations[3]; // Default: "1 day"
+
+    this.http.get<Graph[]>('assets/data/graph-data.json').subscribe((data) => {
+      this.graphs = data;
+      console.log(this.graphs.length + " graphs loaded");
+
+      this.changeDuration(); // Daten laden, wenn verfügbar
+    });
+
+    this.kioskModeChecker();
+
+    this.http.get<any>('http://localhost:8080/sensorbox/latest-values/Serverraum').subscribe(data => {
+      if (data?.power) {
+        this.currentPowerWatt = data.power;
+      } else {
+        console.warn('Keine power-Daten vorhanden:', data);
+      }
+    });
+  }
+
+  private updateTopBarDate(date: Date): void {
+    const formattedDate = date.toLocaleDateString('de-DE', { year: 'numeric', month: 'long', day: 'numeric' });
+    const topBarDateElement = document.querySelector('.top-bar-date');
+    if (topBarDateElement) {
+      topBarDateElement.textContent = formattedDate; // Beispiel: "21. Juni 2025"
     }
   }
 
-  public nextGraph(): void {
-    if (!this.showPvData) {
-      this.selectSensorBox();
-      return;
+  public changeDuration(): void {
+    console.log("Changing Timeframe to: ", this.selectedDuration.short);
+
+    // Monat ausblenden, wenn "1 week" ausgewählt ist
+    if (this.selectedDuration.short === "1 week") {
+      this.isMonthSelected = false;
+      this.selectedMonthYear = { year: 0, month: 0 }; // Setze auf ein leeres Objekt statt null
     }
 
-    this.currentIndex++;
+    this.updateGraphLinks();
+  }
 
-    if (this.currentIndex === -1) {
-      this.selectAllGraphs();
-    } else if (this.currentIndex === this.graphs.length) {
-      this.selectWeather();
-      this.currentIndex = -2;
-    } else if (this.currentIndex >= 0 && this.currentIndex < this.graphs.length) {
-      this.setCurrentGraphWithIndex(this.currentIndex);
-    } else if (this.currentIndex > this.graphs.length) {
-      this.currentIndex = -1;
-      this.selectAllGraphs();
+  private updateGraphLinks(): void {
+    const customCss = encodeURIComponent(`
+      .panel-container, .graph-panel {
+        background-color: pink !important;
+      }
+      .flot-background {
+        fill: white !important;
+      }
+      .bar rect {
+        width: 10px !important;
+        fill: #ff7e5f !important;
+        rx: 4; ry: 4;
+      }
+      .axisLabel, .tickLabel {
+        fill: #444 !important;
+        font-size: 12px !important;
+      }
+    `);
+
+    if (this.isMonthSelected) {
+      const { from, to } = this.calculateStartAndEndOfMonth(this.selectedMonth, this.selectedYear);
+      this.graphs.forEach(graph => {
+        const safeUrl = this.sanitizeAndInjectCss(graph.iFrameLink, from, to, customCss);
+        graph.iFrameLink = this.sanitizer.sanitize(1, safeUrl) || ''; // Konvertiere SafeResourceUrl in string
+      });
+    } else {
+      const selectedDuration: string = this.selectedDuration.short;
+      this.graphs.forEach(graph => {
+        const safeUrl = this.sanitizeAndInjectCss(graph.iFrameLink, `now-${selectedDuration}`, `now`, customCss);
+        graph.iFrameLink = this.sanitizer.sanitize(1, safeUrl) || ''; // Konvertiere SafeResourceUrl in string
+      });
     }
+  
+
+    this.updateCurrentGraph();
   }
 
   calculateStartAndEndOfMonth(month: number, year: number): { from: number, to: number } {
     const startDate = new Date(year, month, 1, 0, 0, 0, 0);
     const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
-  
-    const from = startDate.getTime();
-    const to = endDate.getTime();
-  
-    return { from, to };
-  }
 
-  public changeDuration(): void {
-    console.log("Changing Timeframe to: ", this.selectedDuration.short);
-  
-    // Setze die Monatsauswahl zurück
-    this.isMonthSelected = false;
-    
-    // Aktualisiere die Graphen-Links sofort nach der Änderung
-    this.updateGraphLinks();
-  }
-  
-
-  private updateCurrentGraph(): void {
-    if (this.currentIndex !== -1) {
-      this.setCurrentGraphWithIndex(this.currentIndex);
-    } else {
-      this.currentGraph = null;
+    // Stelle sicher, dass alle Tage des Monats durchlaufen werden
+    const daysInMonth = [];
+    for (let day = 1; day <= endDate.getDate(); day++) {
+      daysInMonth.push(new Date(year, month, day).getTime());
     }
-  }
 
-  private updateGraphLinks(): void {
-    console.log("updateGraphLinks called. isMonthSelected:", this.isMonthSelected, "selectedDuration:", this.selectedDuration.short);
-  
-    if (this.isMonthSelected) {
-      // Monatsansicht aktiv: Berechne Start- und Endzeit
-      const { from, to } = this.calculateStartAndEndOfMonth(this.selectedMonth, this.selectedYear);
-      this.graphs.forEach(graph => {
-        graph.iFrameLink = graph.iFrameLink
-          .replace(/from=[^&]+/, `from=${from}`)
-          .replace(/to=[^&]+/, `to=${to}`);
-      });
-      console.log("Using Monthly Timeframe:", from, to);
-    } else {
-      // Zeitspanne ändern (z. B. 4h, 1d, etc.)
-      const selectedDuration: string = this.selectedDuration.short;
-      this.graphs.forEach(graph => {
-        // Stelle sicher, dass die URL richtig überschrieben wird
-        graph.iFrameLink = graph.iFrameLink
-          .replace(/from=[^&]+/, `from=now-${selectedDuration}`)
-          .replace(/to=[^&]+/, `to=now`);
-      });
-      console.log("Using Timeframe:", selectedDuration);
-    }
-  
-    // Aktualisiere den aktuellen Graphen, falls einer aktiv ist
-    this.updateCurrentGraph();
-  }
-  
-
-  public setCurrentGraphWithIndex(index: number): void {
-    this.currentIndex = index;
-    if (index >= 0 && index < this.graphs.length) {
-      this.currentGraph = this.graphs[index];
-    } else {
-      this.currentGraph = null;
-    }
-  }
-
-  public getSafeUrl(url: string): SafeResourceUrl {
-    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
-  }
-
-  public toggleCollapse() {
-    this.visible = !this.visible;
-  }
-
-  public getAllGraphNames(graphs: Graph[], separator: string): string {
-    let res: string[] = [];
-
-    graphs.forEach(g => {
-      res.push(g.name);
-    });
-
-    return res.join(separator);
-  }
-
-  public selectWeather(): void {
-    this.currentIndex = -2;
-    this.currentGraph = null;
-  }
-
-  public selectSensorBox():void {
-    this.currentIndex = -3;
-    this.currentGraph = null;
+    return { from: startDate.getTime(), to: endDate.getTime() };
   }
 }

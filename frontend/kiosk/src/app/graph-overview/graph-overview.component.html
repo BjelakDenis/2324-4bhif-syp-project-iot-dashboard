@@ -2,11 +2,17 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div class="header-center">
     <h1 *ngIf="currentGraph">{{ currentGraph.title }}</h1>
-    <h1 *ngIf="currentIndex === -1" class="text-center"></h1>
+    <h1 *ngIf="currentIndex === -1 && selectedDuration.short !== '1 week'" class="text-center">
+      {{ months[selectedMonth] }} {{ selectedYear }}
+    </h1>
+    <h1 *ngIf="currentIndex === -1 && selectedDuration.short === '1 week'" class="text-center">
+      Woche {{ selectedWeek }}
+    </h1>
     <h1 *ngIf="currentIndex === -2" class="text-center">Wetter</h1>
     <h1 *ngIf="currentIndex === -3" class="text-center">
       <img src="assets/images/live-icon.png" class="live-icon me-2">
-      Sensorboxen</h1>
+      Sensorboxen
+    </h1>
   </div>
 
   <!-- Einstellungen Dropdown auf der gleichen Höhe ganz rechts -->
@@ -31,7 +37,7 @@
               aria-labelledby="settingsDropdown"
             >
               <!-- Optionale Überschrift -->
-              <li class="dropdown-header custom-dropdown-header">Dashboard-Einstellungen</li>
+              <li class="dropdown-header custom-dropdown-header">Dashboard</li>
 
               <li
                 class="dropdown-item d-flex justify-content-between align-items-center"
@@ -70,6 +76,7 @@
                   class="form-select"
                   [(ngModel)]="selectedDuration"
                   (ngModelChange)="changeDuration()"
+                  [compareWith]="compareDurations"
                 >
                   <option
                     *ngFor="let duration of durations"
@@ -78,7 +85,7 @@
                     {{ duration.long }}
                   </option>
                 </select>
-              </li>              
+              </li>
             </ul>
           </li>
         </ul>
@@ -88,8 +95,8 @@
 </div>
 
 <!-- Monatsauswahl als Dropdown -->
-<!-- Kombiniertes Monats- und Jahresauswahl-Dropdown -->
-<div class="dropdown-container" *ngIf="showPvData && currentIndex !== -2 && currentIndex !== -3">
+<div class="dropdown-container" 
+*ngIf="showPvData && currentIndex !== -2 && currentIndex !== -3 && selectedDuration.short === '30d'">
   <div class="month-year-selector">
     <select class="form-select" [(ngModel)]="selectedMonthYear" (ngModelChange)="selectMonthYearCombo()">
       <ng-container *ngFor="let year of years">
@@ -140,114 +147,6 @@
             (change)="toggleDataMode()"
             class="mode-radio mt-3"
           />
-        </div>
-      </div>
-    </div>
-
-
-    <!-- Dynamische Sidebar-Elemente -->
-    <ul class="sidebar-nav">
-      <!-- PV-Daten: Zeige Dashboard, Graphen und Wetter -->
-      <ng-container *ngIf="showPvData">
-        <li class="sidebar-item">
-          <a
-            class="sidebar-link"
-            href="#"
-            (click)="selectAllGraphs(); $event.preventDefault()"
-            [class.active]="currentIndex === -1"
-          >
-            <i class="fas fa-th-large"></i> Dashboard
-          </a>
-        </li>
-        <li class="sidebar-item" *ngFor="let graph of graphs; let i = index">
-          <a
-            class="sidebar-link"
-            href="#"
-            (click)="selectGraph(i); $event.preventDefault()"
-            [class.active]="currentIndex === i"
-          >
-            <i class="fas fa-chart-bar"></i> {{ graph.title }}
-          </a>
-        </li>
-        <li class="sidebar-item">
-          <a
-            class="sidebar-link"
-            href="#"
-            (click)="selectWeather(); $event.preventDefault()"
-            [class.active]="currentIndex === -2"
-          >
-            <i class="fas fa-cloud-sun"></i> Wetter
-          </a>
-        </li>
-      </ng-container>
-
-      <!-- Sensorbox-Modus: Zeige nur Sensorbox -->
-      <ng-container *ngIf="!showPvData">
-        <li class="sidebar-item">
-          <a
-            class="sidebar-link"
-            href="#"
-            (click)="selectSensorBox(); $event.preventDefault()"
-            [class.active]="currentIndex === -3"
-          >
-            <i class="fas fa-broadcast-tower mode-icon"></i> Sensor-Boxen
-          </a>
-        </li>
-      </ng-container>
-    </ul>
-  </div>
-
-
-  <!-- Hauptinhalt -->
-  <div class="content">
-    <div class="content-wrapper">
-      <!-- Wetteranzeige -->
-      <div *ngIf="currentIndex === -2" class="weather-section">
-        <app-weather></app-weather>
-      </div>
-      <!-- Sensorboxen -->
-      <div *ngIf="currentIndex === -3" class="sensorbox-section">
-        <app-sensorbox-overview></app-sensorbox-overview>
-      </div>
-      <!-- Anzeige der ausgewählten Graphen -->
-      <div class="container">
-        <div class="row">
-          <div class="col-lg-12">
-            <!-- Einzelner Graph -->
-            <div *ngIf="currentGraph && currentIndex != -1 && currentIndex != -2" class="graph-container mb-4">
-              <div class="iframe-container">
-                <div class="iframe-background"></div>
-                <iframe
-                  [src]="getSafeUrl(currentGraph.iFrameLink)"
-                  class="grafana-iframe"
-                ></iframe>
-              </div>
-            </div>
-
-            <!-- Alle Graphen im Dashboard -->
-            <div *ngIf="currentIndex === -1" class="graph-container">
-              <div class="row">
-                <div
-                  *ngFor="let graph of graphs"
-                  class="col-md-6 graph-item mb-4"
-                >
-                  <h3>{{ graph.title }}</h3>
-                  <div class="iframe-container">
-                    <div class="iframe-background"></div>
-                    <iframe
-                      [src]="getSafeUrl(graph.iFrameLink)"
-                      class="grafana-iframe"
-                    ></iframe>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Keine Graphen verfügbar -->
-            <div *ngIf="graphs.length === 0" class="no-graphs">
-              <p>Keine Graphen verfügbar.</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>

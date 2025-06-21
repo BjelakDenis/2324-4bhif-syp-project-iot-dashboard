@@ -1,4 +1,4 @@
 export class Graph {
-  public constructor(public name: string, public description: string, public title: string, public iFrameLink: string) {
+  public constructor(public name: string, public description: string, public title: string, public iFrameLink: string, public data?: any) {
   }
 }

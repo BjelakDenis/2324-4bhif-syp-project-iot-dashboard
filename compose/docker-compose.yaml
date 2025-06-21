@@ -1,5 +1,29 @@
-include:
-  - grafana.yaml
-  - influxdb.yaml
-  - leoenergy.yaml
-  - frontend.yaml
+version: "3.9"
+services:
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana.ini:/etc/grafana/grafana.ini
+
+  influxdb:
+    image: influxdb:1.8
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb-data:/var/lib/influxdb
+
+  leoenergy:
+    build: ../backend
+    depends_on:
+      - influxdb
+
+  frontend:
+    build: ../frontend
+    ports:
+      - "5173:5173"
+
+volumes:
+  influxdb-data:
+
